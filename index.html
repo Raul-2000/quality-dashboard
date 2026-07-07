@@ -519,9 +519,12 @@
       var dateForBucket = null;
       if(colMap.auditDate !== undefined) dateForBucket = parseDate(arr[colMap.auditDate]);
       if(!dateForBucket && colMap.convDate !== undefined) dateForBucket = parseDate(arr[colMap.convDate]);
-      var dateForMonth = null;
-      if(colMap.auditMonth !== undefined) dateForMonth = parseDate(arr[colMap.auditMonth]);
-      if(!dateForMonth) dateForMonth = dateForBucket;
+      // Month is derived from the actual Audit Date (or Conversation Date) first — this is the
+      // real, specific date of the audit. The separate "Audit Month" column is only a manually
+      // typed label and is used as a fallback only when Audit Date is blank, since stale/copy-pasted
+      // Audit Month values (e.g. left over from a duplicated row) would otherwise merge months together.
+      var dateForMonth = dateForBucket;
+      if(!dateForMonth && colMap.auditMonth !== undefined) dateForMonth = parseDate(arr[colMap.auditMonth]);
 
       var row = { advisor: String(advisor).trim() };
       var anyFatal = false, sum = 0, paramPct = {};
