@@ -207,6 +207,50 @@
   }
   .footer-note b{color:var(--text-1);}
 
+  /* ---------- Agent links & profile modal ---------- */
+  .agent-link{
+    cursor:pointer; border-bottom:1px dashed var(--teal-dim); padding-bottom:1px; transition:.15s;
+  }
+  .agent-link:hover{color:var(--teal); border-bottom-color:var(--teal);}
+  .modal-overlay{
+    display:none; position:fixed; inset:0; z-index:50; background:rgba(3,7,15,.72);
+    backdrop-filter:blur(3px); align-items:flex-start; justify-content:center; overflow-y:auto; padding:48px 20px;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-card{
+    width:min(920px,100%); background:linear-gradient(165deg, var(--panel-2), var(--panel));
+    border:1px solid var(--line); border-radius:18px; padding:28px 30px 24px;
+    box-shadow:0 30px 80px rgba(0,0,0,.5); position:relative; animation:modalIn .22s ease;
+  }
+  @keyframes modalIn{ from{opacity:0; transform:translateY(14px) scale(.98);} to{opacity:1; transform:none;} }
+  .modal-close{
+    position:absolute; top:20px; right:22px; width:32px; height:32px; border-radius:9px;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text-1);
+    cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; transition:.15s;
+  }
+  .modal-close:hover{color:var(--coral); border-color:var(--coral);}
+  .modal-head{display:flex; align-items:center; gap:14px; margin-bottom:6px;}
+  .modal-avatar{
+    width:52px; height:52px; border-radius:12px; flex-shrink:0;
+    background:conic-gradient(from 200deg, var(--teal), #3B4CFF, var(--teal));
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-display); font-weight:700; font-size:20px; color:var(--bg-0);
+  }
+  .modal-name{font-family:var(--font-display); font-weight:700; font-size:22px;}
+  .modal-sub{font-size:12px; color:var(--text-2); font-family:var(--font-mono); margin-top:2px;}
+  .modal-kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:22px 0;}
+  @media(max-width:640px){.modal-kpis{grid-template-columns:repeat(2,1fr);}}
+  .modal-kpi{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px;
+  }
+  .modal-kpi .kpi-label{margin-bottom:8px;}
+  .modal-kpi .kpi-value{font-size:20px;}
+  .modal-charts{display:grid; grid-template-columns:1.3fr 1fr; gap:16px; margin-top:6px;}
+  @media(max-width:760px){.modal-charts{grid-template-columns:1fr;}}
+  .modal-charts .panel{padding:16px 18px 10px;}
+  .modal-charts .chart-box{height:230px;}
+  .no-agent-data{color:var(--text-2); font-size:13px; padding:20px 0;}
+
   ::-webkit-scrollbar{height:8px; width:8px;}
   ::-webkit-scrollbar-thumb{background:var(--line); border-radius:4px;}
   ::-webkit-scrollbar-track{background:transparent;}
@@ -342,6 +386,38 @@
     <div class="footer-note">
       <div>Processed <b id="footRows">0</b> audit rows · <b id="footAgents">0</b> advisors · fully client-side, no data leaves this browser.</div>
       <div id="footTimestamp"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ AGENT ALL-TIME PROFILE MODAL ============ -->
+<div class="modal-overlay" id="agentModalOverlay">
+  <div class="modal-card">
+    <div class="modal-close" id="agentModalClose">&#10005;</div>
+    <div class="modal-head">
+      <div class="modal-avatar" id="agentModalAvatar">?</div>
+      <div>
+        <div class="modal-name" id="agentModalName">—</div>
+        <div class="modal-sub" id="agentModalSub">ALL-TIME PERFORMANCE PROFILE</div>
+      </div>
+    </div>
+
+    <div class="modal-kpis">
+      <div class="modal-kpi"><div class="kpi-label">All-Time Avg Score</div><div class="kpi-value" id="agModalAvg">—</div></div>
+      <div class="modal-kpi"><div class="kpi-label">Total Audits</div><div class="kpi-value" id="agModalCount">—</div></div>
+      <div class="modal-kpi"><div class="kpi-label">Total Fatals</div><div class="kpi-value" id="agModalFatals">—</div></div>
+      <div class="modal-kpi"><div class="kpi-label">Best / Weakest Month</div><div class="kpi-value small" id="agModalBestWorst">—</div></div>
+    </div>
+
+    <div class="modal-charts">
+      <div class="panel">
+        <div class="panel-title">Monthly Average Trend <span class="tag">ALL-TIME</span></div>
+        <div class="chart-box"><canvas id="agentTrendChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Parameter Breakdown <span class="tag">ALL-TIME</span></div>
+        <div class="chart-box"><canvas id="agentRadarChart"></canvas></div>
+      </div>
     </div>
   </div>
 </div>
@@ -755,7 +831,7 @@
       var barColor = a.fatals>0 ? '' : '';
       return '<tr>' +
         '<td><span class="rank-badge '+rankClass+'">'+a.rank+'</span></td>' +
-        '<td>'+esc(a.advisor)+'</td>' +
+        '<td><span class="agent-link" data-advisor="'+esc(a.advisor)+'">'+esc(a.advisor)+'</span></td>' +
         '<td><div class="score-bar-wrap"><span class="score-text">'+pct(a.score)+'</span>' +
           '<div class="score-bar-track"><div class="score-bar-fill" style="width:'+Math.min(100,a.score*100)+'%"></div></div></div></td>' +
         '<td>'+a.count+'</td>' +
@@ -778,7 +854,7 @@
         return '<td><span class="heat" style="background:'+c.bg+'; color:'+c.fg+'">'+text+'</span></td>';
       }).join('');
       var overallC = heatColor(a.score);
-      return '<tr><td>'+esc(a.advisor)+'</td>' + cells +
+      return '<tr><td><span class="agent-link" data-advisor="'+esc(a.advisor)+'">'+esc(a.advisor)+'</span></td>' + cells +
         '<td><span class="heat" style="background:'+overallC.bg+'; color:'+overallC.fg+'; font-weight:700;">'+pct(a.score)+'</span></td>' +
         '<td>'+a.count+'</td><td>'+(a.fatals>0?'<span class="badge-fatal">'+a.fatals+'</span>':'0')+'</td></tr>';
     }).join('') || '<tr><td colspan="12" style="color:#5C6E8F; padding:20px;">No data.</td></tr>';
@@ -800,6 +876,101 @@
     ths.forEach(function(t){ t.classList.remove('sorted'); });
     th.classList.add('sorted');
     render();
+  });
+
+  // ---------------- Agent all-time profile modal ----------------
+  var agentCharts = {};
+  function monthToDate(m){ var parts=m.split('-'); return new Date(parseInt(parts[1],10), MONTH_NAMES.indexOf(parts[0]), 1); }
+
+  function openAgentModal(name){
+    var rows = STATE.rows.filter(function(r){ return r.advisor === name; });
+    document.getElementById('agentModalName').textContent = name;
+    document.getElementById('agentModalAvatar').textContent = name.trim().charAt(0).toUpperCase() || '?';
+
+    if(!rows.length){
+      document.getElementById('agModalAvg').textContent = 'N/A';
+      document.getElementById('agModalCount').textContent = '0';
+      document.getElementById('agModalFatals').textContent = '0';
+      document.getElementById('agModalBestWorst').textContent = '—';
+    } else {
+      var totalAudits = rows.length;
+      var avgScore = rows.reduce(function(s,r){return s+r.actualScore;},0)/totalAudits;
+      var fatalCount = rows.filter(function(r){return r.status==='Fatal';}).length;
+
+      // monthly grouping
+      var byMonth = {};
+      rows.forEach(function(r){
+        if(!r.monthKey) return;
+        if(!byMonth[r.monthKey]) byMonth[r.monthKey] = {sum:0,count:0};
+        byMonth[r.monthKey].sum += r.actualScore; byMonth[r.monthKey].count += 1;
+      });
+      var months = Object.keys(byMonth).sort(function(a,b){ return monthToDate(a)-monthToDate(b); });
+      var monthAvgs = months.map(function(m){ return byMonth[m].sum/byMonth[m].count; });
+
+      document.getElementById('agModalAvg').textContent = pct(avgScore);
+      document.getElementById('agModalCount').textContent = totalAudits;
+      document.getElementById('agModalFatals').textContent = fatalCount;
+
+      if(months.length){
+        var bestIdx = 0, worstIdx = 0;
+        monthAvgs.forEach(function(v,i){ if(v>monthAvgs[bestIdx]) bestIdx=i; if(v<monthAvgs[worstIdx]) worstIdx=i; });
+        document.getElementById('agModalBestWorst').textContent = months[bestIdx] + ' / ' + months[worstIdx];
+      } else {
+        document.getElementById('agModalBestWorst').textContent = '—';
+      }
+
+      // parameter averages (all-time)
+      var paramSum = {}, paramCount = {};
+      rows.forEach(function(r){
+        PARAM_ORDER.forEach(function(k){
+          var v = r.paramPct[k];
+          if(v===null || v===undefined) return;
+          paramSum[k] = (paramSum[k]||0)+v; paramCount[k] = (paramCount[k]||0)+1;
+        });
+      });
+      var paramVals = PARAM_ORDER.map(function(k){ return paramCount[k] ? (paramSum[k]/paramCount[k]*100) : 0; });
+
+      if(agentCharts.trend) agentCharts.trend.destroy();
+      agentCharts.trend = new Chart(document.getElementById('agentTrendChart'), {
+        type:'line',
+        data:{ labels: months, datasets:[{ label:'Avg Quality Score', data: monthAvgs.map(function(v){return (v*100).toFixed(1);}),
+          borderColor:'#2EE6D6', backgroundColor:'rgba(46,230,214,.12)', pointBackgroundColor:'#FFB800',
+          pointBorderColor:'#FFB800', pointRadius:5, tension:.3, fill:true, borderWidth:2.5 }] },
+        options: themedOptions({
+          plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(c){ return c.parsed.y + '%'; } } } },
+          scales:{ x:{ grid:{display:false} }, y:{ grid:{color:'rgba(30,53,92,.4)'}, ticks:{color:'#93A6C9', callback:function(v){return v+'%';}}, suggestedMin:0, suggestedMax:100 } }
+        })
+      });
+
+      if(agentCharts.radar) agentCharts.radar.destroy();
+      agentCharts.radar = new Chart(document.getElementById('agentRadarChart'), {
+        type:'radar',
+        data:{ labels: PARAM_ORDER.map(function(k){return PARAM_LABEL[k];}), datasets:[{ label:name, data: paramVals,
+          borderColor:'#FFB800', backgroundColor:'rgba(255,184,0,.18)', pointBackgroundColor:'#FFB800', borderWidth:2 }] },
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(c){ return c.parsed.r + '%'; } } } },
+          scales:{ r:{ suggestedMin:0, suggestedMax:100, ticks:{color:'#5C6E8F', backdropColor:'transparent', font:{size:9}},
+                       grid:{color:'rgba(30,53,92,.5)'}, angleLines:{color:'rgba(30,53,92,.5)'},
+                       pointLabels:{color:'#93A6C9', font:{size:10.5}} } }
+        }
+      });
+    }
+
+    document.getElementById('agentModalOverlay').classList.add('open');
+  }
+
+  function closeAgentModal(){
+    document.getElementById('agentModalOverlay').classList.remove('open');
+  }
+
+  document.addEventListener('click', function(e){
+    var link = e.target.closest('.agent-link');
+    if(link){ openAgentModal(link.getAttribute('data-advisor')); return; }
+    if(e.target.id === 'agentModalOverlay'){ closeAgentModal(); return; }
+    if(e.target.closest('#agentModalClose')){ closeAgentModal(); return; }
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeAgentModal();
   });
 
   // ---------------- Restore previous session ----------------
