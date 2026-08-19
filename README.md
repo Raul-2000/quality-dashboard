@@ -4,6 +4,7 @@ A futuristic, single-page dashboard for BPO call & email quality audits. Upload 
 
 ### 🔗 Live site
 **[https://raul-2000.github.io/quality-dashboard/](https://raul-2000.github.io/quality-dashboard/)**
+**[https://qualitydb.pages.dev/](https://qualitydb.pages.dev/)**
 
 ---
 
